@@ -1,0 +1,23 @@
+#!/bin/sh
+
+####################  configuration block  #####################
+DISKSIZE=14G
+FS_NAME=ROOTFS
+DIRECTORIES=bin etc grub lib media mnt opt root sbin share      \
+srv usr var
+####################  end of configuration #####################
+
+modprobe zram
+name=$(cat /sys/class/zram-control/hot_add)
+echo zstd > /sys/block/zram$name/comp_algorithm
+echo "$DISKSIZE" > /sys/block/zram$name/disksize
+mkfs.ext4 -L "$FS_NAME" /dev/zram$name
+mount /dev/zram$name /tmp/mnt
+cd /tmp/mnt
+mkdir home tmp run sys proc dev oldroot
+for i in sys proc dev; do mount --move /$i /tmp/mnt/$i; done
+cd /
+cp -a $DIRECTORIES /tmp/mnt
+pivot_root /tmp/mnt /tmp/mnt/oldroot
+umount -l /oldroot
+exec /sbin/init
